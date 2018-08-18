@@ -1,0 +1,39 @@
+!!python/object/new:dynamic_reconfigure.encoding.Config
+dictitems:
+  groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+    dictitems:
+      groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+        state: []
+      hue_white_h: 179
+      hue_white_l: 0
+      hue_yellow_h: 179
+      hue_yellow_l: 0
+      id: 0
+      lightness_white_h: 255
+      lightness_white_l: 0
+      lightness_yellow_h: 180
+      lightness_yellow_l: 0
+      name: Default
+      parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+        state: []
+      parent: 0
+      saturation_white_h: 199
+      saturation_white_l: 0
+      saturation_yellow_h: 250
+      saturation_yellow_l: 0
+      state: true
+      type: ''
+    state: []
+  hue_white_h: 179
+  hue_white_l: 0
+  hue_yellow_h: 179
+  hue_yellow_l: 0
+  lightness_white_h: 255
+  lightness_white_l: 0
+  lightness_yellow_h: 180
+  lightness_yellow_l: 0
+  saturation_white_h: 199
+  saturation_white_l: 0
+  saturation_yellow_h: 250
+  saturation_yellow_l: 0
+state: []
