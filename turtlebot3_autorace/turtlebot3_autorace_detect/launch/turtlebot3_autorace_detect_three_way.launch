@@ -1,0 +1,9 @@
+<launch>
+  <!-- launch turtlebot3_autorace_extrinsic_camera_calibration.launch before launch this file -->
+
+  <!-- Three_way -->
+  <node pkg="turtlebot3_autorace_detect" type="detect_three_way" name="detect_three_way" output="screen">
+              
+  </node>
+</launch>
+

@@ -228,10 +228,11 @@ class DetectTrafficLight():
     def fnFindTrafficLight(self):
         cv_image_mask = self.fnMaskGreenTrafficLight()
         cv_image_mask = cv2.GaussianBlur(cv_image_mask, (5, 5), 0)
+        
+        self.stTrafficLight()
 
         status1 = self.fnFindCircleOfTrafficLight(cv_image_mask, 'green')
         if status1 == 1 or status1 == 5:
-           # self.stop_count = 0
             self.green_count += 1
 
         else:
@@ -240,68 +241,41 @@ class DetectTrafficLight():
             cv_image_mask = self.fnMaskYellowTrafficLight()
             cv_image_mask = cv2.GaussianBlur(cv_image_mask, (5, 5), 0)
 
-            status2 = self.fnFindCircleOfTrafficLight(cv_image_mask, 'yellow')
-            if status2 == 2:
-                self.yellow_count += 1
-            else:
-                self.yellow_count = 0
-
-                cv_image_mask = self.fnMaskRedTrafficLight()
-                cv_image_mask = cv2.GaussianBlur(cv_image_mask, (5, 5), 0)
-
-                status3 = self.fnFindCircleOfTrafficLight(cv_image_mask, 'red')
-                if status3 == 3:
-
-                    self.red_count += 1
-                elif status3 == 4:
-
-                    self.red_count += 1
-                   #  self.red_count = 0
-                   # self.stop_count += 1
-                else:
-                    self.red_count = 0
-                   # self.stop_count = 0
-
-        if self.green_count > 4:
+        if self.green_count > 2:
             # start
-            self.stTrafficLight()
-
             msg_pub_max_vel = Float64()
             msg_pub_max_vel.data = 0.10
             self.pub_max_vel.publish(msg_pub_max_vel)
             rospy.loginfo("GREEN")
-            # 마지막 GREEN을 읽을 경우에만 반응
-            if self.off_traffic == True:
-                rospy.loginfo(" check True ")
-                self.finished_value = True
+            self.finished_value = True
 
             cv2.putText(self.cv_image, "GREEN", (self.point_col,
                                                  self.point_low), cv2.FONT_HERSHEY_DUPLEX, 0.5, (80, 255, 0))
 
-        if self.yellow_count > 4:
-            msg_pub_max_vel = Float64()
-            msg_pub_max_vel.data = 0.06 if not self.off_traffic else 0.10
-            self.pub_max_vel.publish(msg_pub_max_vel)
-            rospy.loginfo("YELLOW")
-            cv2.putText(self.cv_image, "YELLOW", (self.point_col,
-                                                  self.point_low), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 255, 255))
+      #  if self.yellow_count > 4:
+      #      msg_pub_max_vel = Float64()
+      #      msg_pub_max_vel.data = 0.06 if not self.off_traffic else 0.10
+      #      self.pub_max_vel.publish(msg_pub_max_vel)
+      #      rospy.loginfo("YELLOW")
+      #      cv2.putText(self.cv_image, "YELLOW", (self.point_col,
+      #                                            self.point_low), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 255, 255))
 
-        if self.red_count > 2 and self.stop_count == 0:
-            msg_pub_max_vel = Float64()
-            msg_pub_max_vel.data = 0.02
-            self.pub_max_vel.publish(msg_pub_max_vel)
-            rospy.loginfo("RED")
-            cv2.putText(self.cv_image, "RED", (self.point_col,
-                                               self.point_low), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255))
+      #  if self.red_count > 2 and self.stop_count == 0:
+      #      msg_pub_max_vel = Float64()
+      #      msg_pub_max_vel.data = 0.02
+      #      self.pub_max_vel.publish(msg_pub_max_vel)
+      #      rospy.loginfo("RED")
+      #      cv2.putText(self.cv_image, "RED", (self.point_col,
+      #                                         self.point_low), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255))
 ##
-            rospy.sleep(2)
-            rospy.loginfo(" red stop ")
-            msg_pub_max_vel.data = 0.0
-            self.pub_max_vel.publish(msg_pub_max_vel)
-            self.off_traffic = True
-            self.stop_count = 1
-            cv2.putText(self.cv_image, "STOP", (self.point_col,
-                                                self.point_low), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255))
+      #      rospy.sleep(2)
+      #      rospy.loginfo(" red stop ")
+      #      msg_pub_max_vel.data = 0.0
+      #      self.pub_max_vel.publish(msg_pub_max_vel)
+      #      self.off_traffic = True
+      #      self.stop_count = 1
+      #      cv2.putText(self.cv_image, "STOP", (self.point_col,
+      #                                          self.point_low), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255))
 
 #        if self.stop_count > 1:
 #            msg_pub_max_vel = Float64()

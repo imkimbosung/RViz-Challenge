@@ -39,7 +39,7 @@ class CoreNodeController():
             '/core/decided_mode', UInt8, self.cbReceiveMode, queue_size=1)
 
         self.CurrentMode = Enum(
-            'CurrentMode', 'idle lane_following traffic_light parking_lot level_crossing tunnel')
+            'CurrentMode', 'idle lane_following traffic_light parking_lot level_crossing tunnel three_way')
 
         # subscribes : status returned
         self.sub_parking_lot_stamped = rospy.Subscriber(
@@ -52,6 +52,10 @@ class CoreNodeController():
         self.sub_traffic_light_order = rospy.Subscriber(
             '/detect/traffic_light_finished', UInt8, self.finishTrafficLight, queue_size=1)
 
+        # tree_way add Sub
+        self.sub_three_way = rospy.Subscriber(
+            '/detect/three_way', UInt8, self.cbThreeWay, queue_size=1)
+
         # publishes orders
         self.pub_traffic_light_order = rospy.Publisher(
             '/detect/traffic_light_order', UInt8, queue_size=1)
@@ -61,6 +65,11 @@ class CoreNodeController():
             '/detect/level_crossing_order', UInt8, queue_size=1)
         self.pub_tunnel_order = rospy.Publisher(
             '/detect/tunnel_order', UInt8, queue_size=1)
+
+        # three_way add Pub
+        self.pub_three_way_order = rospy.Publisher(
+            '/detect/three_way_order', UInt8, queue_size=1)
+
 
         self.pub_mode_return = rospy.Publisher(
             '/core/returned_mode', UInt8, queue_size=1)
@@ -74,14 +83,20 @@ class CoreNodeController():
             'StepOfLevelCrossing', 'searching_stop_sign searching_level watching_level stop pass_level')
         self.StepOfTunnel = Enum(
             'StepOfTunnel', 'searching_tunnel_sign go_in_to_tunnel navigation go_out_from_tunnel exit')
-
+        
+        #
+        self.StepOfThreeWay = Enum(
+            'StepOfThreeway', 'searching_three_way go_to_left go_to_right pass_three_way exit')
+        
         #
         self.current_step_traffic_light = self.StepOfTrafficLight.searching_traffic_light.value
         self.current_step_parking_lot = self.StepOfParkingLot.searching_parking_sign.value
         self.current_step_level_crossing = self.StepOfLevelCrossing.searching_stop_sign.value
         self.current_step_tunnel = self.StepOfTunnel.searching_tunnel_sign.value
+        # Three_way add
+        self.current_step_three_way = self.StepOfThreeWay.searching_three_way.value
 
-        self.Launcher = Enum('Launcher', 'launch_camera_ex_calib launch_detect_sign launch_detect_lane launch_control_lane launch_detect_traffic_light launch_control_traffic_light launch_detect_parking launch_control_parking launch_detect_level launch_control_level launch_detect_tunnel launch_control_tunnel')
+        self.Launcher = Enum('Launcher', 'launch_camera_ex_calib launch_detect_sign launch_detect_lane launch_control_lane launch_detect_traffic_light launch_control_traffic_light launch_detect_parking launch_control_parking launch_detect_level launch_control_level launch_detect_tunnel launch_control_tunnel launch_detect_three_way')
 
         self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
 
@@ -95,6 +110,7 @@ class CoreNodeController():
         self.launch_detect_traffic_light_launched = False
         self.launch_detect_tunnel_launched = False
         self.launch_control_tunnel_launched = False
+        self.launch_detect_three_way_launched = False
 
         self.current_mode = self.CurrentMode.idle.value
 
@@ -116,11 +132,9 @@ class CoreNodeController():
     # Turn off the traffic light
     def finishTrafficLight(self, traffic_order_msg):
         self.current_mode = self.CurrentMode.traffic_light.value
-        # current_step_traffic_light data is temporarily data (강제로 넣은 데이타. 수정요망.)
         self.current_step_traffic_light = self.StepOfTrafficLight.in_traffic_light.value
         rospy.loginfo(traffic_order_msg.data)
         self.fnControlNode()
-        rospy.loginfo("check finish")
 
     # Which step is in Parking Lot
     def cbParkingLotStamped(self, parking_lot_msg):
@@ -176,6 +190,17 @@ class CoreNodeController():
 
         self.is_triggered = True
 
+    # Which step is in three_way
+    def cbThreeWay(self, threeway_msg):
+        rospy.loginfo("ThreeWay Step changed from %d", self.current_step_three_way)
+
+        self.current_step_three_way = threeway_msg.data
+
+        rospy.loginfo("side %d", self.current_step_three_way)
+        
+
+        self.is_triggered = True
+
     def fnControlNode(self):
         # lane_following
         if self.current_mode == self.CurrentMode.lane_following.value:
@@ -184,12 +209,12 @@ class CoreNodeController():
             self.fnLaunch(self.Launcher.launch_camera_ex_calib.value, True)
 
             self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
-            self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
-            self.fnLaunch(
-                self.Launcher.launch_detect_traffic_light.value, True)
+            self.fnLaunch(self.Launcher.launch_detect_sign.value, False)
+            self.fnLaunch(self.Launcher.launch_detect_traffic_light.value, True)
             self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
             self.fnLaunch(self.Launcher.launch_detect_level.value, False)
             self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+            self.fnLaunch(self.Launcher.launch_detect_three_way.value, True)
 
             self.fnLaunch(self.Launcher.launch_control_lane.value, True)
             self.fnLaunch(self.Launcher.launch_control_parking.value, False)
@@ -208,28 +233,28 @@ class CoreNodeController():
 
                 self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
                 self.fnLaunch(self.Launcher.launch_detect_sign.value, False)
-                self.fnLaunch(
-                    self.Launcher.launch_detect_traffic_light.value, True)
+                self.fnLaunch(self.Launcher.launch_detect_traffic_light.value, True)
                 self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_level.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_three_way.value, False)
 
                 self.fnLaunch(self.Launcher.launch_control_lane.value, True)
-                self.fnLaunch(
-                    self.Launcher.launch_control_parking.value, False)
+                self.fnLaunch(self.Launcher.launch_control_parking.value, False)
                 self.fnLaunch(self.Launcher.launch_control_level.value, False)
 
             elif self.current_step_traffic_light == self.StepOfTrafficLight.in_traffic_light.value:
                 rospy.loginfo("Current step : in_traffic_light")
                 rospy.loginfo("Go to next step : pass_traffic_light")
+                rospy.loginfo("=====================================")
 
                 self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
                 self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
-                self.fnLaunch(
-                    self.Launcher.launch_detect_traffic_light.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_traffic_light.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_level.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_three_way.value, False)
 
                 self.fnLaunch(self.Launcher.launch_control_lane.value, True)
                 self.fnLaunch(
@@ -488,9 +513,88 @@ class CoreNodeController():
             rospy.sleep(2)
 
             self.pub_tunnel_order.publish(msg_pub_tunnel_order)
+       
+        # three_way
+        elif self.current_mode == self.CurrentMode.three_wat.value:
+            rospy.loginfo("New trigger for three_way")
+            msg_pub_three_way_order = UInt8()
+
+            if self.current_step_three_way == self.StepOfTreeWay.searching_three_way.value:
+                rospy.loginfo("Current step : searching_three_way")
+                rospy.loginfo("Go to next step : in_three_way")
+
+                msg_pub_three_way_order.data = self.StepOfThreeWay.searching_three_way.value
+                
+                self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
+                self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+                self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_level.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_three_way.value, True)
+
+                self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+                self.fnLaunch(self.Launcher.launch_control_parking.value, False)
+                self.fnLaunch(self.Launcher.launch_control_level.value, False)
+
+                ##########
+                return
+
+            elif self.current_step_three_way == self.StepOfThreeWay.go_to_left.value:
+                  rospy.loginfo("Current step : go_to_left")
+                  rospy.loginfo("Go to next step : exit")
+                  
+                  msg_pub_three_way_order.data = self.StepOfThreeWay.go_to_left.value
+
+                  self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_three_way.value, True)
+
+                  self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_control_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_level.value, False)
+
+            elif self.current_step_three_way == self.StepOfThreeWay.go_to_right.value:
+                  rospy.loginfo("Current step : go_to_right")
+                  rospy.loginfo("Go to next step : exit")
+
+                  msg_pub_three_way_order.data = self.StepOfThreeWay.go_to_right.value
+           
+                  self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_three_way.value, True)
+
+                  self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_control_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_level.value, False)
+
+            elif self.current_step_three_way == self.StepOfThreeWay.pass_three_way.value:
+                  rospy.loginfo("Current step : exit")
+                  rospy.loginfo("Go to next step : pass_three_way")
+
+                  msg_pub_three_way_order.data = self.StepOfThreeWay.pass_three_way.value
+
+                  self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_three_way.value, False)
+
+                  self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_control_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_level.value, False)
+
+
+            self.pub_three_way_order.publish(msg_pub_three_way_order)
 
         self.is_triggered = False
-
+    
     def fnLaunch(self, launch_num, is_start):
         if launch_num == self.Launcher.launch_camera_ex_calib.value:
             if is_start == True:
@@ -651,6 +755,21 @@ class CoreNodeController():
                 if self.launch_control_tunnel_launched == True:
                     self.launch_control_tunnel_launched = False
                     self.launch_control_tunnel.shutdown()
+                else:
+                    pass
+        elif launch_num == self.Launcher.launch_detect_three_way.value:
+            if is_start == True:
+                if self.launch_detect_three_way_launched == False:
+                    self.launch_detect_three_way = roslaunch.scriptapi.ROSLaunch()
+                    self.launch_detect_three_way = roslaunch.parent.ROSLaunchParent(self.uuid, [self.ros_package_path + "turtlebot3_autorace_detect/launch/turtlebot3_autorace_detect_three_way.launch"])
+                    self.launch_detect_three_way_launched = True
+                    self.launch_detect_three_way.start()
+                else:
+                    pass
+            else:
+                if self.launch_detect_three_way_launched == True:
+                    self.launch_detect_three_way_launched = False
+                    self.launch_detect_three_way.shutdown()
                 else:
                     pass
 

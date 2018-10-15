@@ -43,9 +43,9 @@ class CoreModeDecider():
 
         self.InvokedObject = Enum(
             'InvokedObject', 'traffic_sign traffic_light')
-        self.TrafficSign = Enum('TrafficSign', 'divide stop parking tunnel')
+        self.TrafficSign = Enum('TrafficSign', 'divide stop parking tunnel three_way go_to_left go_to_right')
         self.CurrentMode = Enum(
-            'CurrentMode', 'idle lane_following traffic_light parking_lot level_crossing tunnel')
+            'CurrentMode', 'idle lane_following traffic_light parking_lot level_crossing tunnel three_way go_to_left go_to_right')
 
         self.fnInitMode()
 
@@ -82,6 +82,12 @@ class CoreModeDecider():
                     self.current_mode = self.CurrentMode.parking_lot.value
                 elif msg_data.data == self.TrafficSign.tunnel.value:        # Tunnel Sign detected
                     self.current_mode = self.CurrentMode.tunnel.value
+                elif msg_data.data == self.TrafficSign.three_way.value:      # Three way detected
+                    self.current_mode = self.CurrentMode.three_way.value
+                elif msg_data.data == self.TraffiSign.go_to_left.value:      # go_to_left detected
+                    self.current_mode = self.CurrentMode.go_to_left.value
+                elif msg_data.data == self.TraffiSign.go_to_right.value:     # go_to_right detected
+                    self.current_mode = self.TraffiSign.go_to_right.value
             else:
                 pass
 

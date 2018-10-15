@@ -31,25 +31,13 @@ class ControlLane():
         self.pub_cmd_vel = rospy.Publisher('/control/cmd_vel', Twist, queue_size = 1)
 
         self.lastError = 0
-       # self.MAX_VEL = 0.12
-        self.MAX_VEL = 0.10
-        self.Stop_vel = False
-        self.Stop_count = 0 
+        # traffice light start = init speed '0'
+        self.MAX_VEL = 0.00
+        #self.MAX_VEL = 0.10
         rospy.on_shutdown(self.fnShutDown)
 
     def cbGetMaxVel(self, max_vel_msg):
         self.MAX_VEL = max_vel_msg.data
-        #detected RED
-        if self.MAX_VEL == 0.0:
-            self.Stop_vel = True
-            self.Stop_count = 0
-        #detected YELLOW
-        elif self.MAX_VEL == 0.06:
-            self.Stop_vel = True
-            self.Stop_count = 1
-
-        elif self.MAX_VEL > 0.06:
-              self.Stop_vel = False
 
     def cbFollowLane(self, desired_center):
         center = desired_center.data
@@ -63,39 +51,11 @@ class ControlLane():
         self.lastError = error
         twist = Twist()
         twist.linear.x = min(self.MAX_VEL * ((1 - abs(error) / 500) ** 2.2), 0.2)
-       # rospy.loginfo(twist.linear.x)
         twist.linear.y = 0
         twist.linear.z = 0
         twist.angular.x = 0
         twist.angular.y = 0
-##
-        if self.Stop_vel == False:
-            twist.angular.z = -max(angular_z, -2.0) if angular_z < 0 else -min(angular_z, 2.0)
-           # rospy.loginfo("% False value %")
-           # rospy.loginfo(twist.angular.z)
-        elif self.Stop_vel == True and self.Stop_count == 0:
-             # while self.Stop_count < 10:
-
-              #     twist.angular.z = -min(angular_z, 2.0)
-              #     self.Stop_count = self.Stop_count + 1
-              #     rospy.loginfo("@@@@@@@@@@@@@@@@@@@@@@ ")
-              #     rospy.loginfo(twist.angular.z)
-       
-#              twist.angular.z = -0.3
-#              twist.angular.z = -0.3
-
-             # rospy.loginfo("======================== ")
-             # rospy.loginfo(twist.angular.z)
-
-              twist.angular.z = 0
-              rospy.loginfo(" ===================== ")
-              rospy.loginfo(twist.angular.z)
-              self.Stop_count = 2
-            
-        elif self.Stop_vel == True and self.Stop_count == 1:
-              twist.angular.z = 0
-             # rospy.loginfo(twist.angular.z)
-              self.Stop_count = 2
+        twist.angular.z = -max(angular_z, -2.0) if angular_z < 0 else -min(angular_z, 2.0)
 
         self.pub_cmd_vel.publish(twist)
 
