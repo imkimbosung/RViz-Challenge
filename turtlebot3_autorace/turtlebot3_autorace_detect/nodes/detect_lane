@@ -86,7 +86,7 @@ class DetectLane():
  
         # three_way to sub
         self.sub_detect_line = rospy.Subscriber('/detect/three_way_line', UInt8, self.DecideOnDirection  , queue_size = 1)
-        self.sub_detect_finish = rospy.Subscriber('/detect/finish', UInt8, self.DecideOnFinish ,queue_size=1)
+       # self.sub_detect_finish = rospy.Subscriber('/detect/finish', UInt8, self.DecideOnFinish ,queue_size=1)
         self.StepOfThreeWay = Enum('StepOfThreeWay', 'go_to_left go_to_right pass_three_way')
 
         self.cvBridge = CvBridge()
@@ -196,10 +196,12 @@ class DetectLane():
         self.detect_three_way_msg = UInt8
         self.detect_three_way_msg = msg_three_way.data
 
-        if self.StepOfThreeWay.go_to_left.value == self.detect_three_way_msg:
+       # if self.StepOfThreeWay.go_to_left.value == self.detect_three_way_msg:
+        if self.detect_three_way_msg == 1 :
+            print('go to left') 
             self.hue_white_l = 0
 
-        elif self.StopOfThreeWay.go_to_right.value == self.detect_three_way_msg:
+        elif self.detect_three_way_msg == 2:
               self.hue_yellow_l = 0
 
     def DecideOnFinish(self,msg):

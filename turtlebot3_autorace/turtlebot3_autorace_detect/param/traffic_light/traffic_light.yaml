@@ -16,8 +16,8 @@ detect:
       lightness_h: 255
     green:
       hue_l: 54
-      hue_h: 142
-      saturation_l: 46
-      saturation_h: 138
-      lightness_l: 145
-      lightness_h: 255
+      hue_h: 136
+      saturation_l: 81
+      saturation_h: 130
+      lightness_l: 136
+      lightness_h: 211

@@ -77,7 +77,7 @@ def fnCheckLinearity(point1, point2, point3):
 
 def fnCheckDistanceIsEqual(point1, point2, point3):
 
-    threshold_distance_equality = 3
+    threshold_distance_equality = 2
     distance1 = fnCalcDistanceDot2Dot(point1[0], point1[1], point2[0], point2[1])
     distance2 = fnCalcDistanceDot2Dot(point2[0], point2[1], point3[0], point3[1])
     std = np.std([distance1, distance2])
@@ -126,14 +126,20 @@ class DetectLevel():
                 self.pub_image_color_filtered = rospy.Publisher('/detect/image_output_sub1', Image, queue_size = 1)
 
         self.sub_level_crossing_order = rospy.Subscriber('/detect/level_crossing_order', UInt8, self.cbLevelCrossingOrder, queue_size=1)
-        self.sub_level_crossing_finished = rospy.Subscriber('/control/level_crossing_finished', UInt8, self.cbLevelCrossingFinished, queue_size = 1)
+       # self.sub_level_crossing_finished = rospy.Subscriber('/control/level_crossing_finished', UInt8, self.cbLevelCrossingFinished, queue_size = 1)
 
         self.pub_level_crossing_return = rospy.Publisher('/detect/level_crossing_stamped', UInt8, queue_size=1)
-        self.pub_parking_start = rospy.Publisher('/control/level_crossing_start', UInt8, queue_size = 1)
+        #self.pub_parking_start = rospy.Publisher('/control/level_crossing_start', UInt8, queue_size = 1)
 
         self.pub_max_vel = rospy.Publisher('/control/max_vel', Float64, queue_size = 1)
 
         self.StepOfLevelCrossing = Enum('StepOfLevelCrossing', 'searching_stop_sign searching_level watching_level stop pass_level')
+
+
+        # make it,  when see the stio sign
+        self.test_msg = self.StepOfLevelCrossing.searching_level.value
+
+        self.state = 'find'
 
         self.cvBridge = CvBridge()
         self.cv_image = None
@@ -146,11 +152,19 @@ class DetectLevel():
 
         rospy.sleep(1)
 
+        self.test()
+
+        self.count_test = True
         loop_rate = rospy.Rate(15)
         while not rospy.is_shutdown():
-            self.fnFindLevel()
+            if self.count_test == True:
+                self.fnFindLevel()
 
-            loop_rate.sleep()
+        loop_rate.sleep()
+
+    # make it for test
+    def test(self):
+        self.cbLevelCrossingOrder(1)
 
     def cbGetDetectLevelParam(self, config, level):
         rospy.loginfo("[Detect Level] Detect Level Calibration Parameter reconfigured to")
@@ -171,7 +185,7 @@ class DetectLevel():
         return config
 
     def cbGetImage(self, image_msg):
-        # Change the frame rate by yourself. Now, it is set to 1/3 (10fps). 
+        # Change the frame rate by yourself. Now, it is set to 1/3 (10fps).
         # Unappropriate value of frame rate may cause huge delay on entire recognition process.
         # This is up to your computer's operating power.
         if self.counter % 3 != 0:
@@ -189,12 +203,16 @@ class DetectLevel():
     def cbLevelCrossingOrder(self, order):
         pub_level_crossing_return = UInt8()
 
-        if order.data == self.StepOfLevelCrossing.searching_stop_sign.value:
+       # if order.data == self.StepOfLevelCrossing.searching_stop_sign.value:
+        if self.test_msg == self.StepOfLevelCrossing.searching_stop_sign.value:
+
             rospy.loginfo("Now lane_following")
 
             pub_level_crossing_return.data = self.StepOfLevelCrossing.searching_stop_sign.value
-                                                            
-        elif order.data == self.StepOfLevelCrossing.searching_level.value:
+
+       # elif order.data == self.StepOfLevelCrossing.searching_level.value:
+        elif self.test_msg == self.StepOfLevelCrossing.searching_level.value:
+
             rospy.loginfo("Now searching_level")
 
             msg_pub_max_vel = Float64()
@@ -203,24 +221,32 @@ class DetectLevel():
 
             while True:
                 is_level_detected, _, _ = self.fnFindLevel()
+                
                 if is_level_detected == True:
+                    rospy.loginfo("Find")
                     break
                 else:
                     pass
-            
+
             rospy.loginfo("SLOWDOWN!!")
 
             msg_pub_max_vel.data = 0.04
             self.pub_max_vel.publish(msg_pub_max_vel)
 
-            pub_level_crossing_return.data = self.StepOfLevelCrossing.searching_level.value
+            #pub_level_crossing_return.data = self.StepOfLevelCrossing.searching_level.value
 
-        elif order.data == self.StepOfLevelCrossing.watching_level.value:
+            self.test_msg = self.StepOfLevelCrossing.watching_level.value
+            self.test()
+
+        #elif order.data == self.StepOfLevelCrossing.watching_level.value:
+        elif self.test_msg == self.StepOfLevelCrossing.watching_level.value:
+
             rospy.loginfo("Now watching_level")
 
             while True:
                 _, is_level_close, _ = self.fnFindLevel()
                 if is_level_close == True:
+                    rospy.loginfo("Close")
                     break
                 else:
                     pass
@@ -231,32 +257,48 @@ class DetectLevel():
             msg_pub_max_vel.data = 0.0
             self.pub_max_vel.publish(msg_pub_max_vel)
 
-            pub_level_crossing_return.data = self.StepOfLevelCrossing.watching_level.value
+            #pub_level_crossing_return.data = self.StepOfLevelCrossing.watching_level.value
 
-        elif order.data == self.StepOfLevelCrossing.stop.value:
+            self.test_msg = self.StepOfLevelCrossing.stop.value
+            self.test()
+
+       # elif order.data == self.StepOfLevelCrossing.stop.value:
+        elif self.test_msg == self.StepOfLevelCrossing.stop.value:
+
             rospy.loginfo("Now stop")
 
-            while True:
-                _, _, is_level_opened = self.fnFindLevel()
-                if is_level_opened == True:
-                    break
-                else:
-                    pass
+   #         while True:
+   #             _, _, is_level_opened = self.fnFindLevel()
+   #             if is_level_opened == True:
+   #                 rospy.loginfo("Open")
+   #                 break
+   #             else:
+   #                 pass
+
+            rospy.sleep(6)
 
             rospy.loginfo("GO~~")
 
             msg_pub_max_vel = Float64()
-            msg_pub_max_vel.data = 0.04
+            msg_pub_max_vel.data = 0.1
             self.pub_max_vel.publish(msg_pub_max_vel)
 
-            pub_level_crossing_return.data = self.StepOfLevelCrossing.stop.value
+            #pub_level_crossing_return.data = self.StepOfLevelCrossing.stop.value
 
-        elif order.data == self.StepOfLevelCrossing.pass_level.value:
+            self.test_msg = self.StepOfLevelCrossing.pass_level.value
+
+            self.test()
+
+       # elif order.data == self.StepOfLevelCrossing.pass_level.value:
+        elif self.test_msg == self.StepOfLevelCrossing.pass_level.value:
+
             rospy.loginfo("Now pass_level")
 
-            pub_level_crossing_return.data = self.StepOfLevelCrossing.pass_level.value
+            #pub_level_crossing_return.data = self.StepOfLevelCrossing.pass_level.value
 
-        self.pub_level_crossing_return.publish(pub_level_crossing_return)
+        #self.pub_level_crossing_return.publish(pub_level_crossing_return)
+
+       # self.test()
 
     def fnFindLevel(self):
         cv_image_mask = self.fnMaskRedOfLevel()
@@ -284,29 +326,6 @@ class DetectLevel():
 
         # Threshold the HSV image to get only red colors
         mask = cv2.inRange(hsv, lower_red, upper_red)
-
-        # ## TODO:: expand range for red
-        # hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-
-        # # Convert BGR to HSV
-        # Hue_l = 0
-        # Hue_h = 23
-        # Saturation_l = 95
-        # Saturation_h = 217
-        # Lightness_l = 58
-        # Lightness_h = 255
-
-        # # define range of red color in HSV
-        # lower_red = np.array([Hue_l, Saturation_l, Lightness_l])
-        # upper_red = np.array([Hue_h, Saturation_h, Lightness_h])
-
-        # # Threshold the HSV image to get only red colors
-        # mask2 = cv2.inRange(hsv, lower_red, upper_red)
-
-        # # Bitwise-AND mask and original image
-        # # res2 = cv2.bitwise_and(image, image, mask = mask2)
-
-        # mask = cv2.bitwise_or(mask, mask2, mask = None)
 
         if self.is_calibration_mode == True:
             if self.pub_image_type == "compressed":
@@ -352,6 +371,9 @@ class DetectLevel():
         mean_x = 0.0
         mean_y = 0.0
 
+
+        #rospy.loginfo(len(keypts))
+
         # if detected 3 red rectangular
         if len(keypts) == 3:
             for i in range(3):
@@ -373,25 +395,43 @@ class DetectLevel():
             is_rects_linear = fnCheckLinearity(point1, point2, point3)
             is_rects_dist_equal = fnCheckDistanceIsEqual(point1, point2, point3)
 
+            rospy.loginfo(self.state)
             if is_rects_linear == True or is_rects_dist_equal == True:
                 # finding the angle of line
                 distance_bar2car = 100 / fnCalcDistanceDot2Dot(point1[0], point1[1], point2[0], point2[1])
-
+                #rospy.loginfo(self.state)
                 # publishing topic
-                self.stop_bar_count = 40
-                if distance_bar2car > 0.8:
+               # self.stop_bar_count = 10
+                if distance_bar2car > 0.8 and self.state == 'find':
+                    rospy.loginfo(distance_bar2car)
                     is_level_detected = True
-                    self.stop_bar_state = 'slowdown'
-                    self.state = "detected"
-                else:
+                    #self.stop_bar_state = 'slowdown'
+                    #self.state = "detected"
+                    rospy.loginfo("is_level_detected ==== True")
+                    self.state = 'detected'
+                elif self.state == 'detected' :
+                    rospy.sleep(0.5)
                     is_level_close = True
-                    self.stop_bar_state = 'stop'
+                    rospy.loginfo("is_level_close ====== True")
+                    self.state = 'close'
+                    is_rects_linear == False
+                    is_rects_dist_equal == False
+                    self.count_test = False
 
-        if self.stop_bar_count > 0:
-            self.stop_bar_count -= 1
-        if self.stop_bar_count == 0:
-            is_level_opened = True
-            self.stop_bar_state = 'go'
+#        elif self.state == 'close' :
+#            self.stop_bar_count = 10
+#            while True :
+#                if self.stop_bar_count > 0:
+#                    self.stop_bar_count -= 1
+#                    rospy.loginfo(self.stop_bar_count)
+#                if self.stop_bar_count == 0:
+#                    is_level_opened = True
+#                    rospy.loginfo("is_level_opened ========= True")
+#                    self.count_test = False
+#                    break
+
+
+
 
         if self.pub_image_type == "compressed":
             # publishes level image in compressed type

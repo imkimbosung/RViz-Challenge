@@ -136,7 +136,7 @@ class ImageProjection():
         if self.pub_image_type == "compressed":
             # publishes ground-project image in compressed type
             self.pub_image_projected.publish(self.cvBridge.cv2_to_compressed_imgmsg(cv_image_homography, "jpg"))
-
+#cv_image_homography
         elif self.pub_image_type == "raw":
             # publishes ground-project image in raw type
             self.pub_image_projected.publish(self.cvBridge.cv2_to_imgmsg(cv_image_homography, "bgr8"))

@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="turtlebot3_autorace_control" type="test" name="test" output="screen">
+  </node>
+</launch>
+

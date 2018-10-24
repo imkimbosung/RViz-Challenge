@@ -32,12 +32,14 @@ class ControlLane():
 
         self.lastError = 0
         # traffice light start = init speed '0'
-        self.MAX_VEL = 0.00
-        #self.MAX_VEL = 0.10
+       # self.MAX_VEL = 0.00
+        self.MAX_VEL = 0.08
         rospy.on_shutdown(self.fnShutDown)
 
     def cbGetMaxVel(self, max_vel_msg):
+        print('send ')         
         self.MAX_VEL = max_vel_msg.data
+
 
     def cbFollowLane(self, desired_center):
         center = desired_center.data

@@ -75,7 +75,7 @@ class ImageCompensation():
 
         ## Image compensation based on pseudo histogram equalization
         clip_hist_percent = self.clip_hist_percent
-        
+        #256
         hist_size = 256
         min_gray = 0
         max_gray = 0
@@ -115,7 +115,7 @@ class ImageCompensation():
         if self.pub_image_type == "compressed":
             # publishes compensated image in compressed type
             self.pub_image_compensated.publish(self.cvBridge.cv2_to_compressed_imgmsg(cv_image_compensated, "jpg"))
-
+	    #cv_image_compensated cv_image_original
         elif self.pub_image_type == "raw":
             # publishes compensated image in raw type
             self.pub_image_compensated.publish(self.cvBridge.cv2_to_imgmsg(cv_image_compensated, "bgr8"))

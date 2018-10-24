@@ -31,6 +31,7 @@ from std_msgs.msg import UInt8
 
 class CoreNodeController():
     def __init__(self):
+        #self.check()
         self.ros_package_path = os.path.dirname(os.path.realpath(__file__))
         self.ros_package_path = self.ros_package_path.replace(
             'turtlebot3_autorace_core/nodes', '')
@@ -39,7 +40,7 @@ class CoreNodeController():
             '/core/decided_mode', UInt8, self.cbReceiveMode, queue_size=1)
 
         self.CurrentMode = Enum(
-            'CurrentMode', 'idle lane_following traffic_light parking_lot level_crossing tunnel three_way')
+            'CurrentMode', 'idle lane_following traffic_light parking_lot level_crossing tunnel three_way etc obstacle')
 
         # subscribes : status returned
         self.sub_parking_lot_stamped = rospy.Subscriber(
@@ -53,8 +54,14 @@ class CoreNodeController():
             '/detect/traffic_light_finished', UInt8, self.finishTrafficLight, queue_size=1)
 
         # tree_way add Sub
-        self.sub_three_way = rospy.Subscriber(
-            '/detect/three_way', UInt8, self.cbThreeWay, queue_size=1)
+        self.sub_three_way_finished = rospy.Subscriber(
+            '/detect/three_way_finished', UInt8, self.finishThreeWay ,queue_size=1)
+
+        # Obstacle add Sub
+        self.sub_obstacle = rospy.Subscriber(
+            '/control/obstacle', UInt8, self.cbObstacle, queue_size=1)
+        self.sub_obstacle_finished = rospy.Subscriber(
+            '/control/obstacle_finished',UInt8, self.cbObstacle, queue_size=1)
 
         # publishes orders
         self.pub_traffic_light_order = rospy.Publisher(
@@ -70,6 +77,9 @@ class CoreNodeController():
         self.pub_three_way_order = rospy.Publisher(
             '/detect/three_way_order', UInt8, queue_size=1)
 
+        # obstacle add Pub
+        self.pub_obstacle_order = rospy.Publisher(
+            '/control/obstacle_order', UInt8, queue_size=1)
 
         self.pub_mode_return = rospy.Publisher(
             '/core/returned_mode', UInt8, queue_size=1)
@@ -86,7 +96,10 @@ class CoreNodeController():
         
         #
         self.StepOfThreeWay = Enum(
-            'StepOfThreeway', 'searching_three_way go_to_left go_to_right pass_three_way exit')
+            'StepOfThreeway', 'searching_three_way scan_act go_to_left go_to_right pass_three_way exit')
+        #
+        self.StepOfObstacle = Enum(
+            'StepOfObstacle', 'start_scan detect_obstacle_1 detect_obstacle_2 go_to_scan obstacle_finish')
         
         #
         self.current_step_traffic_light = self.StepOfTrafficLight.searching_traffic_light.value
@@ -95,8 +108,10 @@ class CoreNodeController():
         self.current_step_tunnel = self.StepOfTunnel.searching_tunnel_sign.value
         # Three_way add
         self.current_step_three_way = self.StepOfThreeWay.searching_three_way.value
+        # Obstacle add
+        self.current_step_obstacle = self.StepOfObstacle.start_scan.value
 
-        self.Launcher = Enum('Launcher', 'launch_camera_ex_calib launch_detect_sign launch_detect_lane launch_control_lane launch_detect_traffic_light launch_control_traffic_light launch_detect_parking launch_control_parking launch_detect_level launch_control_level launch_detect_tunnel launch_control_tunnel launch_detect_three_way')
+        self.Launcher = Enum('Launcher', 'launch_camera_ex_calib launch_detect_sign launch_detect_lane launch_control_lane launch_detect_traffic_light launch_control_traffic_light launch_detect_parking launch_control_parking launch_detect_level launch_control_level launch_detect_tunnel launch_control_tunnel launch_detect_three_way launch_control_obstacle')
 
         self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
 
@@ -111,6 +126,12 @@ class CoreNodeController():
         self.launch_detect_tunnel_launched = False
         self.launch_control_tunnel_launched = False
         self.launch_detect_three_way_launched = False
+        # obstacle add
+        self.launch_control_obstacle_launched = False
+
+        #test_obstacle
+      #  self.testObstacle()
+
 
         self.current_mode = self.CurrentMode.idle.value
 
@@ -191,15 +212,46 @@ class CoreNodeController():
         self.is_triggered = True
 
     # Which step is in three_way
-    def cbThreeWay(self, threeway_msg):
+   # def cbThreeWay(self, threeway_msg):
+   #     rospy.loginfo("ThreeWay Step changed from %d", self.current_step_three_way)
+
+   #     self.current_step_three_way = threeway_msg.data
+
+   #     if threeway_msg.data == 'pass_three':
+   #         self.current_step_three_way = self.StepOfThreeWay.pass_three_way.value
+   #     else :
+   #          self.current_step_three_way = threeway_msg.data
+
+   #     rospy.loginfo("side %d", self.current_step_three_way)
+        
+
+   #     self.is_triggered = True
+
+    # Which step is in three_way
+    def finishThreeWay(self, threeway_msg):
         rospy.loginfo("ThreeWay Step changed from %d", self.current_step_three_way)
 
-        self.current_step_three_way = threeway_msg.data
-
+        self.current_step_three_way = self.StepOfThreeWay.pass_three_way.value
         rospy.loginfo("side %d", self.current_step_three_way)
         
 
         self.is_triggered = True
+    
+
+
+    # Which step is in obstacle
+    def cbObstacle(self, obstacle_msg):
+        rospy.loginfo("Obstacle step changed from $d", self.current_step_obstacle)
+
+        self.current_step_obstacle = self.StepOfObstacle.detect_obstacle_1.value
+
+        if obstacle_msg.data == '2':
+            self.current_step_obstacle = self.StepOfObstacle.obstacle_finish.value
+
+        rospy.loginfo("pass %d", self.current_step_obstacle)
+    def testObstacle(self):
+	self.current_mode = self.CurrentMode.three_way.value
+	self.current_step_obstacle = self.StepOfObstacle.start_scan.value
 
     def fnControlNode(self):
         # lane_following
@@ -208,17 +260,19 @@ class CoreNodeController():
 
             self.fnLaunch(self.Launcher.launch_camera_ex_calib.value, True)
 
-            self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
-            self.fnLaunch(self.Launcher.launch_detect_sign.value, False)
-            self.fnLaunch(self.Launcher.launch_detect_traffic_light.value, True)
+            self.fnLaunch(self.Launcher.launch_detect_lane.value, False)
+            self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+            self.fnLaunch(self.Launcher.launch_detect_traffic_light.value, False)
             self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
             self.fnLaunch(self.Launcher.launch_detect_level.value, False)
             self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
-            self.fnLaunch(self.Launcher.launch_detect_three_way.value, True)
+            self.fnLaunch(self.Launcher.launch_detect_three_way.value, False)
 
-            self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+            self.fnLaunch(self.Launcher.launch_control_lane.value, False)
             self.fnLaunch(self.Launcher.launch_control_parking.value, False)
             self.fnLaunch(self.Launcher.launch_control_tunnel.value, False)
+            # obstacle add
+            self.fnLaunch(self.Launcher.launch_control_obstacle.value, False)
 
         # traffic_light
         elif self.current_mode == self.CurrentMode.traffic_light.value:
@@ -242,6 +296,8 @@ class CoreNodeController():
                 self.fnLaunch(self.Launcher.launch_control_lane.value, True)
                 self.fnLaunch(self.Launcher.launch_control_parking.value, False)
                 self.fnLaunch(self.Launcher.launch_control_level.value, False)
+                # control_obstacle
+                self.fnLaunch(self.Launcher.launch_control_obstacle.value, False)
 
             elif self.current_step_traffic_light == self.StepOfTrafficLight.in_traffic_light.value:
                 rospy.loginfo("Current step : in_traffic_light")
@@ -249,7 +305,7 @@ class CoreNodeController():
                 rospy.loginfo("=====================================")
 
                 self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
-                self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+                self.fnLaunch(self.Launcher.launch_detect_sign.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_traffic_light.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_level.value, False)
@@ -261,7 +317,7 @@ class CoreNodeController():
                     self.Launcher.launch_control_parking.value, False)
                 self.fnLaunch(self.Launcher.launch_control_level.value, False)
 
-            rospy.sleep(2)
+           # rospy.sleep(2)
 
             self.pub_traffic_light_order.publish(msg_pub_traffic_light_order)
 
@@ -287,6 +343,9 @@ class CoreNodeController():
                 self.fnLaunch(self.Launcher.launch_detect_parking.value, True)
                 self.fnLaunch(
                     self.Launcher.launch_detect_traffic_light.value, False)
+                # obstacle add
+                #self.fnLaunch(self.Launcher.launch_detect_obstacle.value, False)
+
 
             elif self.current_step_parking_lot == self.StepOfParkingLot.searching_parking_point_line.value:
                 rospy.loginfo("Current step : searching_parking_point_line")
@@ -403,14 +462,16 @@ class CoreNodeController():
 
             elif self.current_step_level_crossing == self.StepOfLevelCrossing.pass_level.value:
                 rospy.loginfo("Current step : pass_level")
-                rospy.loginfo("Go to next step : searching_stop_sign")
+                #rospy.loginfo("Go to next step : searching_stop_sign")
+                rospy.loginfo("step : finish ")
 
                 msg_pub_level_crossing_order.data = self.StepOfLevelCrossing.searching_stop_sign.value
 
                 self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
                 self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
                 self.fnLaunch(self.Launcher.launch_control_lane.value, True)
-                self.fnLaunch(self.Launcher.launch_detect_level.value, True)
+                #self.fnLaunch(self.Launcher.launch_detect_level.value, True)
+                self.fnLaunch(self.Launcher.launch_detect_level.value, False)
                 self.fnLaunch(
                     self.Launcher.launch_detect_traffic_light.value, False)
 
@@ -513,71 +574,123 @@ class CoreNodeController():
             rospy.sleep(2)
 
             self.pub_tunnel_order.publish(msg_pub_tunnel_order)
-       
+        
         # three_way
-        elif self.current_mode == self.CurrentMode.three_wat.value:
+        elif self.current_mode == self.CurrentMode.three_way.value:
             rospy.loginfo("New trigger for three_way")
             msg_pub_three_way_order = UInt8()
+            msg_go_order = None
 
-            if self.current_step_three_way == self.StepOfTreeWay.searching_three_way.value:
-                rospy.loginfo("Current step : searching_three_way")
+            if self.current_step_three_way == self.StepOfThreeWay.go_to_left.value:
+                rospy.loginfo("Current step : go_to_left")
                 rospy.loginfo("Go to next step : in_three_way")
 
-                msg_pub_three_way_order.data = self.StepOfThreeWay.searching_three_way.value
+                msg_pub_three_way_order.data = self.StepOfThreeWay.go_to_left.value
                 
+                msg_go_order = '1'
+
                 self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
-                self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+                self.fnLaunch(self.Launcher.launch_detect_sign.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_level.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
                 self.fnLaunch(self.Launcher.launch_detect_three_way.value, True)
 
-                self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+                self.fnLaunch(self.Launcher.launch_control_lane.value, False)
                 self.fnLaunch(self.Launcher.launch_control_parking.value, False)
                 self.fnLaunch(self.Launcher.launch_control_level.value, False)
-
-                ##########
-                return
-
-            elif self.current_step_three_way == self.StepOfThreeWay.go_to_left.value:
-                  rospy.loginfo("Current step : go_to_left")
-                  rospy.loginfo("Go to next step : exit")
-                  
-                  msg_pub_three_way_order.data = self.StepOfThreeWay.go_to_left.value
-
-                  self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
-                  self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
-                  self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
-                  self.fnLaunch(self.Launcher.launch_detect_level.value, False)
-                  self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
-                  self.fnLaunch(self.Launcher.launch_detect_three_way.value, True)
-
-                  self.fnLaunch(self.Launcher.launch_control_lane.value, True)
-                  self.fnLaunch(self.Launcher.launch_control_parking.value, False)
-                  self.fnLaunch(self.Launcher.launch_control_level.value, False)
+                # obstacle add
+                self.fnLaunch(self.Launcher.launch_control_obstacle.value, False)
 
             elif self.current_step_three_way == self.StepOfThreeWay.go_to_right.value:
                   rospy.loginfo("Current step : go_to_right")
                   rospy.loginfo("Go to next step : exit")
-
+                  
                   msg_pub_three_way_order.data = self.StepOfThreeWay.go_to_right.value
-           
+
+                  msg_go_order = '2'
+
                   self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
-                  self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_sign.value, False)
                   self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
                   self.fnLaunch(self.Launcher.launch_detect_level.value, False)
                   self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
                   self.fnLaunch(self.Launcher.launch_detect_three_way.value, True)
 
-                  self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_control_lane.value, False)
                   self.fnLaunch(self.Launcher.launch_control_parking.value, False)
                   self.fnLaunch(self.Launcher.launch_control_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_obstacle.value, False) 
 
             elif self.current_step_three_way == self.StepOfThreeWay.pass_three_way.value:
                   rospy.loginfo("Current step : exit")
                   rospy.loginfo("Go to next step : pass_three_way")
 
                   msg_pub_three_way_order.data = self.StepOfThreeWay.pass_three_way.value
+                  self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_three_way.value, False)
+
+                  self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_control_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_obstacle.value, False)
+
+            print(msg_go_order)
+            self.pub_three_way_order.publish(msg_go_order)
+
+            
+        # obstacle
+        elif self.current_mode == self.CurrentMode.obstacle.value:
+            rospy.loginfo("New trigger for obstacle")
+            msg_pub_obstacle_order = UInt8()
+
+            if self.current_step_obstacle == self.StepOfObstacle.start_scan.value:
+                rospy.loginfo("Current step : start_scan")
+                rospy.loginfo("Go to next step : detect_obstacle_1")
+
+                msg_pub_obstacle_order.data = self.StepOfObstacle.start_scan.value
+                
+                self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
+                self.fnLaunch(self.Launcher.launch_detect_sign.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_level.value, False)
+                self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+
+                self.fnLaunch(self.Launcher.launch_control_lane.value, True)
+                self.fnLaunch(self.Launcher.launch_control_parking.value, False)
+                self.fnLaunch(self.Launcher.launch_control_level.value, False)
+                # obstacle add
+                self.fnLaunch(self.Launcher.launch_control_obstacle.value, True)
+
+
+            elif self.current_step_obstacle == self.StepOfObstacle.detect_obstacle_1.value:
+                  rospy.loginfo("Current step : detect_obstacle")
+                  rospy.loginfo("Go to next step : obstacle_finish")
+                  
+                  msg_pub_obstacle_order.data = self.StepOfObstacle.detect_obstacle_1.value
+
+                  self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
+                  self.fnLaunch(self.Launcher.launch_detect_sign.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_tunnel.value, False)
+                  self.fnLaunch(self.Launcher.launch_detect_three_way.value, False)
+
+                  self.fnLaunch(self.Launcher.launch_control_lane.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_parking.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_obstacle.value, True)
+
+
+            elif self.current_step_three_way == self.StepOfObstacle.obstacle_finish.value:
+                  rospy.loginfo("Current step : obstacle_finish")
+                  rospy.loginfo("Go to next step : exit")
+
+                  msg_pub_three_way_order.data = self.StepOfObstacle.obstacle_finish.value
 
                   self.fnLaunch(self.Launcher.launch_detect_lane.value, True)
                   self.fnLaunch(self.Launcher.launch_detect_sign.value, True)
@@ -589,9 +702,10 @@ class CoreNodeController():
                   self.fnLaunch(self.Launcher.launch_control_lane.value, True)
                   self.fnLaunch(self.Launcher.launch_control_parking.value, False)
                   self.fnLaunch(self.Launcher.launch_control_level.value, False)
+                  self.fnLaunch(self.Launcher.launch_control_obstacle.value, False)
 
 
-            self.pub_three_way_order.publish(msg_pub_three_way_order)
+            self.pub_obstacle_order.publish(msg_pub_three_way_order)
 
         self.is_triggered = False
     
@@ -773,6 +887,23 @@ class CoreNodeController():
                 else:
                     pass
 
+        elif launch_num == self.Launcher.launch_control_obstacle.value:
+            if is_start == True:
+                if self.launch_control_obstacle_launched == False:
+                    self.launch_control_obstacle = roslaunch.scriptapi.ROSLaunch()
+                    self.launch_control_obstacle = roslaunch.parent.ROSLaunchParent(self.uuid, [self.ros_package_path + "turtlebot3_autorace_control/launch/turtlebot3_autorace_control_obstacle.launch"])
+                    self.launch_control_obstacle_launched = True
+                    self.launch_control_obstacle.start()
+                else:
+                    pass
+            else:
+                if self.launch_control_obstacle_launched == True:
+                    self.launch_control_obstacle_launched = False
+                    self.launch_control_obstacle.shutdown()
+                else:
+                    pass
+    
+    
     def main(self):
         rospy.spin()
 

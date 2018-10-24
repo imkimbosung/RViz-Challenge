@@ -1,0 +1,12 @@
+<launch>
+  <!-- launch turtlebot3_autorace_detect_parking.launch before launch this file -->
+
+  <!-- parking control -->
+  <node pkg="turtlebot3_autorace_control" type="control_obstacle" name="control_obstacle" output="screen">
+    <remap from="/control/lane" to="/detect/lane" />
+    <remap from="/control/cmd_vel" to="/cmd_vel" />
+    <remap from="/control/odom" to="/odom" />
+  </node>
+</launch>
+
+

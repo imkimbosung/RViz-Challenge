@@ -1,0 +1,207 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+
+import rospy
+import roslaunch
+import numpy as np
+import cv2
+import subprocess
+import os
+import sys
+import tf
+import math
+from cv_bridge import CvBridge
+from std_msgs.msg import UInt8, Float64
+from sensor_msgs.msg import Image, CompressedImage
+from dynamic_reconfigure.server import Server
+from enum import Enum
+from math import radians, copysign, sqrt, pow, pi, atan2
+from geometry_msgs.msg import Twist, Point, Quaternion
+from tf.transformations import euler_from_quaternion
+from nav_msgs.msg import Odometry
+
+class DetectThreeWay():
+    def __init__(self):
+
+       ## subscriber 
+        # core_node_controller에서 받은 order
+        #원래 켜놔야 할것.
+        self.sub_three_way_order = rospy.Subscriber(
+            '/detect/three_way_order', UInt8, self.stDecideOn, queue_size=1)
+
+       ## publisher 
+        # core_node_controller 에  보내는 order
+        self.pub_three_way_finished = rospy.Publisher(
+            '/detect/three_way_finished', UInt8, queue_size=1)
+       # self.pub_cmd_vel = rospy.Publisher('/control/cmd_vel', Twist, queue_size=1)
+        self.pub_max_vel = rospy.Publisher('/control/max_vel', Float64, queue_size = 1)
+        # false control lane
+        self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
+
+        self.StepOfThreeWay = Enum('StepOfThreeWay','scan_act go_to_left go_to_right pass_three_way exit')
+
+        self.is_step_three_way = True #default = False
+
+        self.current_step_three_way = self.StepOfThreeWay.scan_act.value
+
+        self.tf_listener = tf.TransformListener()
+        self.odom_frame = 'odom'
+
+        #self.start_jone = False
+        self.step_three_way = 'find the sign'
+
+        loop_rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            if self.is_step_three_way == True:
+               # self.fnThreeWay()
+               self.test()
+            loop_rate.sleep()
+        rospy.on_shutdown(self.shutdown)
+    
+    def test(self):
+        #self.cbThreeWayStart(2)
+        self.stDecideOn(1)
+        #print('test_part start')
+    def cbThreeWayStart(self,three_way_msg):
+        self.is_step_three_way = True
+        self.stDecideOn(2)
+        #print('this_cbThreeStart part')
+    
+    def stDecideOn(self, msg_pub):
+        #self.start_join = False
+        self.is_step_three_way = True
+        print(msg_pub)
+
+        #if msg_pub == "1":
+        self.step_three_way = self.StepOfThreeWay.go_to_left.value
+        #print("stDecideon part : %d " % self.step_three_way)
+        #elif msg_pub == "2":
+        #self.step_three_way = self.StepOfThreeWay.go_to_right.value
+
+        self.DecideOnDirection()
+
+    def DecideOnDirection(self):
+        
+        if self.step_three_way == self.StepOfThreeWay.go_to_left.value:
+            if self.is_step_three_way == True:
+                rospy.loginfo('Go to Left')
+                
+                rospy.sleep(1)
+
+                self.fnGOGO()
+                rospy.sleep(4)
+     
+                self.fnLeft()
+                self.is_step_three_way = False
+
+                self.current_step_of_three_way = self.StepOfThreeWay.pass_three_way.value
+                #self.pub_three_way_finished.publish(self.current_step_of_three_way)
+                rospy.sleep(2)
+        elif self.step_three_way == self.StepOfThreeWay.go_to_right.value:
+              if self.is_step_three_way == True:
+                  rospy.loginfo('Go to Right')
+        
+                  rospy.sleep(1)
+                  self.fnGOGO()
+                  rospy.sleep(4)
+
+                  self.fnRight()
+                  self.is_step_three_way = False
+
+                  self.current_step_of_three_way = self.StepOfThreeWay.pass_three_way.value
+                  #self.pub_three_way_finished.publish(self.current_step_of_three_way)
+                  rospy.sleep(2)
+        
+ 
+        else :
+             if self.is_step_three_way == False:
+                 self.pub_max_vel.publish(0.60)
+
+    def fnLeft(self):
+        self.current_theta = 0
+        self.lastError = 0.0
+        self.desired_theta = self.current_theta + 1.57
+
+        self.err_theta = self.current_theta - self.desired_theta
+
+        rospy.loginfo("Left_Turn")
+        Kp = 0.8
+        Kd = 0.03
+
+        angular_z = Kp * self.err_theta + Kd * (self.err_theta - self.lastError)
+        self.lastError = self.err_theta
+
+        twist = Twist()
+        twist.linear.x = 0
+        twist.linear.y = 0
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = -angular_z
+        self.pub_cmd_vel.publish(twist)
+
+        rospy.loginfo("angular_z : %f", angular_z)
+
+        rospy.sleep(1)
+        self.fnStop()
+
+    def fnRight(self):
+
+        self.current_theta = 0
+        self.lastError = 0.0
+        self.desired_theta = self.current_theta - 1.57
+
+        self.err_theta = self.current_theta - self.desired_theta
+
+        rospy.loginfo("Right_Turn")
+        Kp = 0.8
+ 
+        Kd = 0.03
+
+        angular_z = Kp * self.err_theta + Kd * (self.err_theta - self.lastError)
+        self.lastError = self.err_theta
+
+        twist = Twist()
+        twist.linear.x = 0
+        twist.linear.y = 0
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = -angular_z
+        self.pub_cmd_vel.publish(twist)
+
+        rospy.loginfo("angular_z : %f", angular_z)
+
+        rospy.sleep(1)
+        self.fnStop()
+
+    def fnGOGO(self):
+        print('start fnGo')
+        twist = Twist()
+        twist.linear.x = 0.07
+        twist.linear.y = 0
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = 0
+        self.pub_cmd_vel.publish(twist)
+
+    def fnStop(self):
+        twist = Twist()
+        twist.linear.x = 0
+        twist.linear.y = 0
+        twist.linear.z = 0
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = 0
+        self.pub_cmd_vel.publish(twist)
+
+
+    def main(self):
+        rospy.spin()
+
+if __name__ == '__main__':
+    rospy.init_node('detect_three_way')
+    node = DetectThreeWay()
+    node.main()

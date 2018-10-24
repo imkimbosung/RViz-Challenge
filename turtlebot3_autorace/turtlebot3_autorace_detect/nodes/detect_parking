@@ -23,7 +23,7 @@ import rospy
 import numpy as np
 import math
 import tf
-import os 
+import os
 import cv2
 from enum import Enum
 from std_msgs.msg import UInt8, Float64, String
@@ -37,7 +37,7 @@ class DetectParking():
         self.sub_image_type = "raw"         # "compressed" / "raw"
         self.pub_image_type = "raw"         # "compressed" / "raw"
 
-        # subscribes state : white line reliability
+	    # subscribes state : white line reliability
         self.sub_parking_lot_order = rospy.Subscriber('/detect/parking_lot_order', UInt8, self.cbParkingLotOrder)
 
         self.sub_scan_obstacle = rospy.Subscriber('/detect/scan', LaserScan, self.cbScanObstacle, queue_size=1)
@@ -78,16 +78,10 @@ class DetectParking():
         self.blink_trigger = 1
         self.blink_count = 0
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        dir_path = dir_path.replace('turtlebot3_autorace_detect/src', 'turtlebot3_autorace_detect/')
-        dir_path += 'file/detect_parking/'
-
-        self.img1 = cv2.imread(dir_path + 'parking_not_allowed.png', -1)
-        self.img2 = cv2.imread(dir_path + 'parking_allowed.png', -1)
-
     def cbGetImage(self, image_msg):
-	# rospy.loginfo("cbGetImage")
+        rospy.loginfo("cbGetImage")
         if image_msg is not None:
+            print('cbGetImage - image_msg ==> into cv_image')
             if self.sub_image_type == "compressed":
                 np_arr = np.fromstring(image_msg.data, np.uint8)
                 self.cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -195,7 +189,6 @@ class DetectParking():
         self.is_obstacle_detected = is_obstacle_detected
 
     def fnFindDotLine(self):
-        rospy.loginfo("fnFindDotLine")
         self.cv_bitn_img = cv2.bitwise_not(self.cv_image)
         params = cv2.SimpleBlobDetector_Params()
         # Change thresholds
@@ -217,26 +210,25 @@ class DetectParking():
 
         det = cv2.SimpleBlobDetector_create(params)
         keypts = det.detect(self.cv_bitn_img)
-        # frame = cv2.drawKeypoints(self.cv_bitn_img, keypts, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-
+       # frame = cv2.drawKeypoints(self.cv_bitn_img, keypts, np.array([]), (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        rospy.loginfo(len(keypts))
         count = 0
         for i in range(len(keypts)):
             x = int(keypts[i].pt[0])
             y = int(keypts[i].pt[1])
-
+            rospy.loginfo('=============='+ x)
             if x > 500:
                 count += 1
-
+     
         if count >= 1:
             return True
         else:
             return False
 
     def fnBlinkParkSign(self):
-       # rospy.loginfo("fnBlinkParkSign")
         if self.is_now_parking == True:
             self.blink_count += 1
-            if self.blink_count % 8 == 0:
+            if self.blink_count % 4 == 0:
                 self.blink_trigger = 1 - self.blink_trigger
                 self.blink_count = 0
 
