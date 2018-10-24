@@ -25,6 +25,7 @@
 트랙 완성 전까지 각자 역할에 따른 개발
 트랙 완성 된 이후 통합 및 테스트
 
+11월 15일 - 마지막 연습(대구)
 </pre>
 
 
@@ -33,4 +34,3 @@
 https://github.com/ROBOTIS-GIT/turtlebot3
 https://github.com/ROBOTIS-GIT/turtlebot3_autorace
 </pre>
-
