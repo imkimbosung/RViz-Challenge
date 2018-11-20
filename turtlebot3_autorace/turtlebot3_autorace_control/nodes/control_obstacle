@@ -23,56 +23,77 @@ class ControlObstacle():
         self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size = 5)
         self.pub_obstacle_step = rospy.Publisher('/control/obstacle', UInt8, queue_size = 1)
         self.pub_obstacle_finished = rospy.Publisher('/control/obstacle_finished', UInt8, queue_size = 1)
+        self.pub_max_vel = rospy.Publisher('/control/max_vel', Float64, queue_size = 1)
+
+        self.pub_start_obstacle = rospy.Publisher('/start/obstacle', Float64, queue_size=1)
 
         self.LIDAR_ERR = 0.05
 
-        self.is_step_obstacle = True #default = False
+        self.is_step_obstacle = False #default = False
+        self.finish_obstacle = False
 
-        self.StepOfObstacle = Enum('StepOfObstacle','start_scan detect_obstacle_1 detect_obstacle_2 go_to_scan') 
+        self.StepOfObstacle = Enum('StepOfObstacle','start_scan detect_obstacle_1 detect_obstacle_2 go_to_scan')
 
 
-        self.current_step_of_obstacle = self.StepOfObstacle.start_scan.value 
+        self.current_step_of_obstacle = self.StepOfObstacle.start_scan.value
 
+        rospy.sleep(1)
+
+        ##(core_controller) if you run to first start obstacle , self.start to run
+        #self.start()
+
+        ##just test without core_controller
+        # self.test()
 
         loop_rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             if self.is_step_obstacle == True:
-               # self.fnobstacle()
-               self.test()
+
+                self.fnObstacle()
+              # self.test()
 
             loop_rate.sleep()
 
-        rospy.on_shutdown(self.shutdown)
+
+    def start(self):
+        self.pub_start_obstacle.publish(1)
 
     def test(self):
-        self.cbObstacleStart(1)
 
-    def cbObstacleStart(self, obstacle_start_msg):
         self.is_step_obstacle = True
         self.fnObstacle()
 
-    def fnObstacle(self):
 
+    def cbObstacleStart(self, obstacle_start_msg):
+        rospy.loginfo('obstacle sub working ')
+        self.is_step_obstacle = True
+        self.pub_max_vel.publish(0.08)
+       # self.fnObstacle()
+
+    def fnObstacle(self):
+        print('start fnobstacle')
         if self.current_step_of_obstacle == self.StepOfObstacle.start_scan.value:
             if self.is_step_obstacle == True:
                 rospy.loginfo('Start to Obstacle scan')
                 self.obstacle()
-                
+
                 self.is_step_obstacle = False
-                
+
                 self.current_step_of_obstacle = self.StepOfObstacle.detect_obstacle_1.value
                 self.pub_obstacle_step.publish(1)
-                rospy.sleep(2)
-                 
-                self.test()
+                rospy.sleep(1)
+
+            #    self.test()
 
         elif self.current_step_of_obstacle == self.StepOfObstacle.detect_obstacle_1.value:
               if self.is_step_obstacle == True:
                  rospy.loginfo('Detect to Obstacle-1')
 
                  self.fnLeft()
+                 print('fnleft finish')
                  self.fnGo()
-                 rospy.sleep(4)
+                 print('fngo')
+                 rospy.sleep(2.6)
 
                  self.fnStop()
 
@@ -81,7 +102,8 @@ class ControlObstacle():
 
                  self.current_step_of_obstacle = self.StepOfObstacle.go_to_scan.value
                  self.test()
-                 self.cbObstacleStart(1)
+                # self.cbObstacleStart(1)
+                # self.fnObstacle()
 
 
         elif self.current_step_of_obstacle == self.StepOfObstacle.go_to_scan.value:
@@ -94,23 +116,31 @@ class ControlObstacle():
 
                   self.current_step_of_obstacle = self.StepOfObstacle.detect_obstacle_2.value
                   self.test()
-                  self.cbObstacleStart(1)
+                 # self.cbObstacleStart(1)
+                 # self.fnObstacle()
 
 
         elif self.current_step_of_obstacle == self.StepOfObstacle.detect_obstacle_2.value:
-              if self.is_step_obstacle == True:
+              if self.finish_obstacle == False:
                   rospy.loginfo('Detect to Obstacle-2')
 
                   self.fnRight()
                   self.fnGo()
-                  rospy.sleep(4.5)
+                  rospy.sleep(2.2)
 
                   self.fnStop()
 
                   self.fnLeft()
                   self.is_step_obstacle = False
+                  self.finish_obstacle = True
+                  ##
+                  self.fnGo()
+                  rospy.sleep(2)
+                  self.fnStop()
 
-                  self.pub_obstacle_finish.publish('2')
+                  self.pub_obstacle_finished.publish(2)
+
+
 
     def get_scan(self):
         msg = rospy.wait_for_message("scan", LaserScan)
@@ -122,16 +152,17 @@ class ControlObstacle():
 
     def obstacle(self):
         self.twist = Twist()
+        rospy.sleep(1)
         self.fnGo()
         while True:
-            
+
             self.get_scan()
 
             if not self.scan_filter:
                 pass
 
-            elif min(self.scan_filter) < 0.23:
-                  self.fnStop()
+            elif min(self.scan_filter) < 0.33:
+                  self.pub_max_vel.publish(0.0)
                   rospy.loginfo('Stop!')
                   # stop to find obstacle
                   break
@@ -196,13 +227,13 @@ class ControlObstacle():
 
         rospy.loginfo("angular_z : %f", angular_z)
 
-        rospy.sleep(1)
+        rospy.sleep(1.1)
         self.fnStop()
 
 
     def fnGo(self):
         twist = Twist()
-        twist.linear.x = 0.07
+        twist.linear.x = 0.12
         twist.linear.y = 0
         twist.linear.z = 0
         twist.angular.x = 0
@@ -222,8 +253,8 @@ class ControlObstacle():
         twist.angular.z = 0
         self.pub_cmd_vel.publish(twist)
 
-        rospy.sleep(2)
-    
+        rospy.sleep(1)
+
     def main(self):
         rospy.spin()
 
@@ -231,4 +262,3 @@ if __name__ == '__main__':
     rospy.init_node('control_obstacle')
     node = ControlObstacle()
     node.main()
-

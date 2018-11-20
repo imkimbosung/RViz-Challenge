@@ -45,15 +45,19 @@ class CoreModeDecider():
             'InvokedObject', 'traffic_sign traffic_light')
         self.TrafficSign = Enum('TrafficSign', 'divide stop parking tunnel three_way go_to_left go_to_right etc obstacle')
         self.CurrentMode = Enum(
-            'CurrentMode', 'idle lane_following traffic_light parking_lot level_crossing tunnel three_way go_to_left go_to_right etc obstacle')
+            'CurrentMode', 'idle lane_following traffic_light parking_lot level_crossing tunnel three_way etc obstacle go_to_left go_to_right')
 
         self.fnInitMode()
 
     # Invoke if traffic sign is detected
     def cbInvokedByTrafficSign(self, traffic_sign_type_msg):
-        self.fnDecideMode(
-            self.InvokedObject.traffic_sign.value, traffic_sign_type_msg)
+        #rospy.loginfo('mode_decider ========== ' , traffic_sign_type_msg)
+        print('===============================')
+        print(traffic_sign_type_msg)
+        #self.fnDecideMode(self.InvokedObject.traffic_sign.value, traffic_sign_type_msg)
         rospy.loginfo("Traffic sign detected")
+        self.pub_decided_mode.publish(traffic_sign_type_msg)
+        #self.fnInitMode()
     # Invoke if traffic light is detected
 
     def cbInvokedByTrafficLight(self, traffic_light_type_msg):
@@ -72,10 +76,13 @@ class CoreModeDecider():
 
     # starts only when the traffic sign / traffic light is detected & current_mode is lane_following
     def fnDecideMode(self, invoked_object, msg_data):
+        rospy.loginfo('fnDecideMode in')
         if self.current_mode == self.CurrentMode.lane_following.value:
+            rospy.loginfo('current_mode = lane_following')
             if invoked_object == self.InvokedObject.traffic_light.value:    # Traffic Light detected
                 self.current_mode = self.CurrentMode.traffic_light.value
             if invoked_object == self.InvokedObject.traffic_sign.value:   # Any Sign detected
+                rospy.loginfo('invoked == traffice_sign')
                 if msg_data.data == self.TrafficSign.stop.value:            # Stop Sign detected
                     self.current_mode = self.CurrentMode.level_crossing.value
                 elif msg_data.data == self.TrafficSign.parking.value:       # Parking Sign detected
@@ -95,7 +102,10 @@ class CoreModeDecider():
             else:
                 pass
 
-            self.fnPublishMode()
+           # print add
+            print('core mode decider = ' ,self.current_mode)
+            #self.fnPublishMode()
+            #self.pub_decided_mode.publish(self.current_mode)
         else:
             pass
 

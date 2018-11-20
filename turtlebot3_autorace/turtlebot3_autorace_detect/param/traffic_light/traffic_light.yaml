@@ -2,7 +2,7 @@ detect:
   traffic_light:
     red:
       hue_l: 0
-      hue_h: 179
+      hue_h: 26
       saturation_l: 0
       saturation_h: 255
       lightness_l: 0
@@ -16,8 +16,8 @@ detect:
       lightness_h: 255
     green:
       hue_l: 54
-      hue_h: 136
-      saturation_l: 81
-      saturation_h: 130
-      lightness_l: 136
-      lightness_h: 211
+      hue_h: 173
+      saturation_l: 163
+      saturation_h: 255
+      lightness_l: 70
+      lightness_h: 255

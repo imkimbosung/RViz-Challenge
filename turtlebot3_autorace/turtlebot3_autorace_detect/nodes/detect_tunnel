@@ -32,9 +32,11 @@ from move_base_msgs.msg import MoveBaseActionResult
 
 class DetectTunnel():
     def __init__(self):
-        self.sub_tunnel_order = rospy.Subscriber('/detect/tunnel_order', UInt8, self.cbTunnelOrder, queue_size=1)
+        #self.sub_tunnel_order = rospy.Subscriber('/detect/tunnel_order', UInt8, self.cbTunnelOrder, queue_size=1)
         self.sub_arrival_status = rospy.Subscriber("/move_base/result", MoveBaseActionResult, self.cbGetNavigationResult, queue_size=1)
         self.sub_odom = rospy.Subscriber('/odom', Odometry, self.cbOdom, queue_size=1)
+
+        self.sub_test = rospy.Subscriber('/tunnel', Float64, self.test , queue_size = 1)
 
         self.pub_tunnel_return = rospy.Publisher('/detect/tunnel_stamped', UInt8, queue_size=1)
         self.pub_goal_pose_stamped = rospy.Publisher("/move_base_simple/goal", PoseStamped, queue_size=1)
@@ -48,6 +50,37 @@ class DetectTunnel():
         self.is_tunnel_finished = False
 
         self.last_current_theta = 0.0
+	#i =1
+
+        self.test_msg = self.StepOfTunnel.searching_tunnel_sign.value
+
+	print("test")
+        self.test(1)
+
+
+    #def testfunction(self, i):
+        #order= self.StepOfTunnel.go_in_to_tunnel_sign
+        #self.cbTunnelOrder(order)
+        #print('order === '+ order)
+	#order.data = self.StepOfTunnel.navigation
+	#self.cbTunnelOrder(order)
+        #print('hdfgdhfdhgfghfjg')
+	#order.data = self.StepOfTunnel.go_out_from_tunnel
+	#self.cbTunnelOrder(order)
+	#order.data = self.StepOfTunnel.exit
+	#self.cbTunnelOrder(order)
+
+
+   # def test(self):
+   #     print('=======play the testFunction================')
+   #     order = self.StepOfTunnel.searching_tunnel_sign.value
+   #     self.cbTunnelOrder(order)
+
+    def test(self, num):
+        rospy.info('start test(tunnel)')
+        self.cbTunnelOrder(1)
+
+
 
     def cbGetNavigationResult(self, msg_nav_result):
         if msg_nav_result.status.status == 3:
@@ -58,16 +91,55 @@ class DetectTunnel():
     def cbTunnelOrder(self, order):
         pub_tunnel_return = UInt8()
 
-        if order.data == self.StepOfTunnel.searching_tunnel_sign.value:
+        print(order)
+
+       # if order.data == self.StepOfTunnel.searching_tunnel_sign.value:
+        if self.test_msg == self.StepOfTunnel.searching_tunnel_sign.value:
             rospy.loginfo("Now lane_following")
 
             pub_tunnel_return.data = self.StepOfTunnel.searching_tunnel_sign.value
-                            
+            #global initialPose
+            self.initialPose.PoseWithCovarianceStamped()
+            self.initialPose.header.frame_id = "map"
+            self.initialPose.header.stamp = rospy.Time.now()
+            self.initialPose.pose.pose = self.odom_msg.pose.pose
+
+            self.pub_init_pose.publish(initialPose)
+
+            self.fnPubGoalPose()
+
+            while True:
+                if self.is_navigation_finished == True:
+                    break
+                else:
+                    pass
+
+            pub_tunnel_return.data = self.StepOfTunnel.navigation.value
+            
+            self.test_msg == self.StepOfTunnel.go_in_to_tunnel.value
                                 
-        elif order.data == self.StepOfTunnel.go_in_to_tunnel.value:
+        #elif order.data == self.StepOfTunnel.go_in_to_tunnel.value:
+        elif self.test_msg == self.StepOfTunnel.go_in_to_tunnel.value:
             rospy.loginfo("Now go_in_to_tunnel")
 
-            self.lastError = 0.0
+            initialPose = PoseWithCovarianceStamped()
+            initialPose.header.frame_id = "map"
+            initialPose.header.stamp = rospy.Time.now()
+            initialPose.pose.pose = self.odom_msg.pose.pose
+
+            self.pub_init_pose.publish(initialPose)
+
+            self.fnPubGoalPose()
+
+            while True:
+                if self.is_navigation_finished == True:
+                    break
+                else:
+                    pass
+
+            pub_tunnel_return.data = self.StepOfTunnel.navigation.value
+
+ 	    self.lastError = 0.0
             self.start_pos_x = self.current_pos_x
             self.start_pos_y = self.current_pos_y
 
@@ -82,9 +154,12 @@ class DetectTunnel():
             rospy.loginfo("go_in_to_tunnel finished")
 
             pub_tunnel_return.data = self.StepOfTunnel.go_in_to_tunnel.value
+            
+            self.test_msg == self.StepOfTunnel.navigation.value
 
 
-        elif order.data == self.StepOfTunnel.navigation.value:
+       # elif order.data == self.StepOfTunnel.navigation.value:
+        elif self.test_msg == self.StepOfTunnel.navigation.value:
             rospy.loginfo("Now navigation")
             initialPose = PoseWithCovarianceStamped()
             initialPose.header.frame_id = "map"
@@ -103,8 +178,11 @@ class DetectTunnel():
 
             pub_tunnel_return.data = self.StepOfTunnel.navigation.value
 
+            self.test_msg == self.StepOfTunnel.go_out_from_tunnel.value
 
-        elif order.data == self.StepOfTunnel.go_out_from_tunnel.value:
+
+       # elif order.data == self.StepOfTunnel.go_out_from_tunnel.value:
+        elif self.test_msg == self.StepOfTunnel.go_out_from_tunnel.value:
             rospy.loginfo("Now go_out_from_tunnel")
 
             self.lastError = 0.0
@@ -121,7 +199,10 @@ class DetectTunnel():
 
             pub_tunnel_return.data = self.StepOfTunnel.go_out_from_tunnel.value
 
-        elif order.data == self.StepOfTunnel.exit.value:
+            self.test_msg == self.StepOfTunnel.exit.value
+
+       # elif order.data == self.StepOfTunnel.exit.value:
+        elif self.test_msg == self.StepOfTunnel.exit.value:
             rospy.loginfo("Now exit")
 
             pub_tunnel_return.data = self.StepOfTunnel.exit.value

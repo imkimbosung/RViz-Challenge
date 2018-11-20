@@ -2,11 +2,11 @@ detect:
   level:
     red:
       hue_l: 0
-      hue_h: 63
-      saturation_l: 0
-      saturation_h: 137
-      lightness_l: 65
-      lightness_h: 155
+      hue_h: 16
+      saturation_l: 82
+      saturation_h: 177
+      lightness_l: 104
+      lightness_h: 255
 
 
 
